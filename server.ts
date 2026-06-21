@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
@@ -23,7 +22,7 @@ function getAiClient(): GoogleGenAI {
 }
 
 // API Route for streaming chat responses
-app.post("/api/chat-stream", async (req, res) => {
+app.post(["/api/chat-stream", "/chat-stream", "/.netlify/functions/api/chat-stream"], async (req, res) => {
   const { messages, systemPrompt } = req.body;
   
   res.setHeader("Content-Type", "text/event-stream");
@@ -64,7 +63,7 @@ app.post("/api/chat-stream", async (req, res) => {
 });
 
 // API Route for non-streaming chat responses
-app.post("/api/chat", async (req, res) => {
+app.post(["/api/chat", "/chat", "/.netlify/functions/api/chat"], async (req, res) => {
   const { messages, systemPrompt } = req.body;
   try {
     const ai = getAiClient();
@@ -78,7 +77,7 @@ app.post("/api/chat", async (req, res) => {
       model: "gemini-3.5-flash",
       contents,
       config: {
-        systemInstruction: systemPrompt || "Siz VeloxAI ismli o'ta aqlli va tezkor sun'iy intellekt yordamchisiz. Foydalanuvchining har qanday savollariga aniq, ravshan va har taraflama mukammal javob berasiz.",
+        systemInstruction: systemPrompt || "Siz VeloxAI ismli o'ta aqlli va tezkor sun'iy intellekt yordamchisiz. Foydalanuvchining har qanday savollariga aniq, ravshan va har taraflama mukammal javob erasiz.",
       }
     });
 
@@ -90,7 +89,7 @@ app.post("/api/chat", async (req, res) => {
 });
 
 // API Route for image generation
-app.post("/api/generate-image", async (req, res) => {
+app.post(["/api/generate-image", "/generate-image", "/.netlify/functions/api/generate-image"], async (req, res) => {
   const { prompt, aspectRatio = "1:1" } = req.body;
   try {
     const ai = getAiClient();
@@ -129,7 +128,7 @@ app.post("/api/generate-image", async (req, res) => {
 });
 
 // API Route for text to speech
-app.post("/api/text-to-speech", async (req, res) => {
+app.post(["/api/text-to-speech", "/text-to-speech", "/.netlify/functions/api/text-to-speech"], async (req, res) => {
   const { text, voice = "Kore" } = req.body;
   try {
     const ai = getAiClient();
@@ -165,6 +164,7 @@ async function startServer() {
 
   // Vite middleware for development (Express v4 format app.use)
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
