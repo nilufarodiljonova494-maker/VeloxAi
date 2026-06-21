@@ -11,15 +11,18 @@ async function startServer() {
   app.use(express.json());
   const PORT = 3000;
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  const ai = new GoogleGenAI({
-    apiKey: apiKey,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
+  // Lazy initialization of GoogleGenAI client to avoid startup crashes
+  let aiClient: GoogleGenAI | null = null;
+  function getAiClient(): GoogleGenAI {
+    if (!aiClient) {
+      const key = process.env.GEMINI_API_KEY;
+      if (!key || key === "MY_GEMINI_API_KEY" || key === "GEMINI_API_KEY" || key.trim() === "") {
+        throw new Error("GEMINI_API_KEY yozilmagan yoki noto'g'ri sozlash. Iltimos, AI Studio Secrets panelida yoki .env faylida o'zingizning haqiqiy Gemini API kalitingizni kiriting.");
       }
+      aiClient = new GoogleGenAI({ apiKey: key });
     }
-  });
+    return aiClient;
+  }
 
   // API Route for streaming chat responses
   app.post("/api/chat-stream", async (req, res) => {
@@ -30,9 +33,7 @@ async function startServer() {
     res.setHeader("Connection", "keep-alive");
 
     try {
-      if (!apiKey) {
-        throw new Error("GEMINI_API_KEY sozlanmagan. Iltimos, Secrets bo'limida kalitni kiriting.");
-      }
+      const ai = getAiClient();
 
       // Filter and map message history to Gemini payload
       const contents = (messages || []).map((m: any) => ({
@@ -68,9 +69,7 @@ async function startServer() {
   app.post("/api/chat", async (req, res) => {
     const { messages, systemPrompt } = req.body;
     try {
-      if (!apiKey) {
-        throw new Error("GEMINI_API_KEY sozlanmagan. Iltimos, Secrets bo'limida kalitni kiriting.");
-      }
+      const ai = getAiClient();
 
       const contents = (messages || []).map((m: any) => ({
         role: m.role === 'assistant' ? 'model' : 'user',
@@ -96,9 +95,7 @@ async function startServer() {
   app.post("/api/generate-image", async (req, res) => {
     const { prompt, aspectRatio = "1:1" } = req.body;
     try {
-      if (!apiKey) {
-        throw new Error("GEMINI_API_KEY sozlanmagan. Secrets menyusini tekshiring.");
-      }
+      const ai = getAiClient();
 
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
@@ -137,9 +134,7 @@ async function startServer() {
   app.post("/api/text-to-speech", async (req, res) => {
     const { text, voice = "Kore" } = req.body;
     try {
-      if (!apiKey) {
-        throw new Error("GEMINI_API_KEY sozlanmagan.");
-      }
+      const ai = getAiClient();
 
       const response = await ai.models.generateContent({
         model: "gemini-3.1-flash-tts-preview",

@@ -142,6 +142,11 @@ export default function App() {
           body: JSON.stringify({ prompt: text, aspectRatio: options?.aspectRatio || "1:1" }),
         });
 
+        const contentType = response.headers.get("Content-Type") || "";
+        if (!contentType.includes("application/json")) {
+          throw new Error("Serverdan noto'g'ri formatdagi javob (JSON emas) qaytdi. Ehtimol, ilovani Netlify kabi faqat statik hostingga joylagansiz. VeloxAI ishlashi uchun Express (Node.js) serveri kerak!");
+        }
+
         if (!response.ok) {
           const errData = await response.json();
           throw new Error(errData.error || "Rasm chizishda vaqtinchalik xatolik yuz berdi");
@@ -176,6 +181,11 @@ export default function App() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text, voice: selectedVoice }),
         });
+
+        const contentType = response.headers.get("Content-Type") || "";
+        if (!contentType.includes("application/json")) {
+          throw new Error("Serverdan olingan matn noto'g'ri. Netlify kabi faqat statik hostinglarda Node.js Express serveringiz ishlamaydi!");
+        }
 
         if (!response.ok) {
           const errData = await response.json();
@@ -238,6 +248,11 @@ export default function App() {
           throw new Error("Chat stream xizmati bilan ulanib bo'lmadi");
         }
 
+        const contentType = response.headers.get("Content-Type") || "";
+        if (!contentType.includes("text/event-stream")) {
+          throw new Error("Express server ishga tushmagan yoki mavjud emas. Agar siz faqat HTML/JS fayllarni Netlify-ga deploy qilgan bo'lsangiz, API'lar ishlamaydi, chunki ular to'liq Node.js Express serverida maxfiy kalit bilan ishlaydi. Iltimos, ilovaning o'zini Google Cloud Run havolasidan foydalaning yoki Railway/Render ga deploy qiling!");
+        }
+
         const reader = response.body?.getReader();
         const decoder = new TextDecoder("utf-8");
         if (!reader) throw new Error("Oqimni o'qib bo'lmadi.");
@@ -257,8 +272,14 @@ export default function App() {
               if (cleanedLine === "[DONE]") {
                 break;
               }
+              let parsed: any = null;
               try {
-                const parsed = JSON.parse(cleanedLine);
+                parsed = JSON.parse(cleanedLine);
+              } catch (e) {
+                // skip broken JSON chunks
+              }
+
+              if (parsed) {
                 if (parsed.text) {
                   fullTextContent += parsed.text;
                   
@@ -279,8 +300,6 @@ export default function App() {
                 } else if (parsed.error) {
                   throw new Error(parsed.error);
                 }
-              } catch (e) {
-                // skip broken JSON chunks
               }
             }
           }
